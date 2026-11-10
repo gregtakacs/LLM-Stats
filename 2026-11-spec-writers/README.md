@@ -1,7 +1,8 @@
 # Three agents write the same implementation spec
 
-**Result.** A fresh frontier agent with no prior context wrote the best spec. A self-hosted
-local model, run through a delegation harness, came a close second: as accurate and the most
+**Result.** A fresh Claude Code (Opus 5.5) session with no prior context wrote the best spec.
+A self-hosted Qwen 3.8 Flash Next (pennyroyal build), run through a delegation harness, came a
+close second: as accurate and the most
 thorough, but it missed two of the owner's rulings that live only in the orchestrating agent's
 saved notes. The orchestrating agent's own spec, written with the files already in its context,
 was correct but the thinnest. The local model's gap was knowledge, not reasoning: given the
@@ -41,15 +42,21 @@ contract, checks that cannot pass silently, an explicit out-of-scope list).
 
 The writers:
 
-- **A. Fresh agent:** a frontier coding agent in a new session, no prior context.
-- **B. Local model:** a self-hosted model, run by a delegation harness in an isolated worktree
-  with the live checkout mounted read-only.
-- **C. Orchestrator:** the frontier agent that had been running the project all day, with the
-  relevant files already read.
+- **A. Fresh agent:** Claude Code (Opus 5.5) in a new session, no prior context.
+- **B. Local model:** Qwen 3.8 Flash Next (the "pennyroyal" build), self-hosted, run by a
+  delegation harness (opencode as the agent) in an isolated worktree with the live checkout
+  mounted read-only.
+- **C. Orchestrator:** Claude Code (Opus 5.5), the session that had been running the project all
+  day, with the relevant files already read.
+
+### Hardware for the local model
+
+One machine: an AMD Strix system with 128 GB of RAM and an NVIDIA RTX 6000 PRO GPU, serving the
+model to the harness over an OpenAI-compatible endpoint. A and C ran on Anthropic's API.
 
 ## Time and tokens
 
-| | A. Fresh agent | B. Local model | C. Orchestrator |
+| | A. Fresh agent (Claude Code, Opus 5.5) | B. Local model (Qwen 3.8 Flash Next, pennyroyal) | C. Orchestrator (Claude Code, Opus 5.5) |
 |---|---|---|---|
 | Wall-clock | 9 min 40 s (about 5 min of it a baseline test run) | 10 min 51 s | 31 s measured; warm context. Cold, estimated 6-10 min |
 | Work | 32 tool calls, almost all sequential | 150 tool calls, 134 steps | about 7 KB read, 5 KB written |
