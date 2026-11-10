@@ -1,0 +1,4 @@
+writer,wall_clock_s,tool_calls,tokens_out,tokens_out_measured,tokens_in_est,spec_bytes,names_checked,names_exact,rank
+fresh_agent,580,32,11000,no,45000,21884,11,10,1
+local_model_delegate,651,150,59106,yes,,24121,10,9,2
+orchestrator_warm,31,,4000,no,,5105,,,3
