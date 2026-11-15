@@ -1,0 +1,44 @@
+{
+  "name": "h3",
+  "repo": "../..",
+  "base": "h3",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "h3-1-sites",
+      "spec": "docs/specs/h3-1-sites.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3-rt.log && for m in test_h2_browser test_h2c_browser test_sessions_ui test_config test_origin test_host test_install test_doctor; do grep -qE \"^ok +hub[.]tests[.]$m .* OK$\" /tmp/h3-rt.log || exit 1; done && ! git diff --name-only h3 | grep -qvE '^(hub/(config|gate|doctor|__main__|api)[.]py$|hub/install[.]sh$|hub/tests/|docs/hub-install[.]md$|docs/hub-agent-install[.]md$|daemon/tests/test_install_docs[.]py$|docs/specs/)'"
+    },
+    {
+      "name": "h3-2-routing",
+      "spec": "docs/specs/h3-2-routing.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py daemon $(ls hub/tests/test_*.py | sed 's#/#.#g; s#[.]py$##' | grep -vE 'test_(h2_browser|h2c_browser|sessions_ui)$') | tee /tmp/h3-rt.log && for m in test_two_origins test_routing test_headers test_ui test_gate_order test_h1_acceptance test_h2_acceptance; do grep -qE \"^ok +hub[.]tests[.]$m .* OK$\" /tmp/h3-rt.log || exit 1; done && ! git diff --name-only delegate/h3-1-sites | grep -qvE '^(hub/(routes|gate|proxy|api|__main__|doctor|wsrelay|config)[.]py$|hub/tests/|docs/specs/)' && git diff --quiet delegate/h3-1-sites -- hub/static hub/verifier.py hub/tests/test_h2_browser.py hub/tests/test_h2c_browser.py hub/tests/test_sessions_ui.py"
+    },
+    {
+      "name": "h3-3-ui",
+      "spec": "docs/specs/h3-3-ui.md",
+      "hard": false,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3-rt.log && for m in test_h2_browser test_h2c_browser test_sessions_ui test_ui test_two_origins; do grep -qE \"^ok +hub[.]tests[.]$m .* OK$\" /tmp/h3-rt.log || exit 1; done && ! git diff --name-only delegate/h3-2-routing | grep -qvE '^(hub/static/|hub/tests/|docs/specs/)' && git diff --quiet delegate/h3-2-routing -- hub/static/app.css hub/tests/test_two_origins.py"
+    },
+    {
+      "name": "h3-4-renew",
+      "spec": "docs/specs/h3-4-renew.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3-rt.log && for m in test_h2_browser test_h2c_browser test_sessions_ui test_ui test_two_origins test_h3_renew_browser; do grep -qE \"^ok +hub[.]tests[.]$m .* OK$\" /tmp/h3-rt.log || exit 1; done && ! git diff --name-only delegate/h3-3-ui | grep -qvE '^(hub/(routes|api|gate|proxy|__main__)[.]py$|hub/static/|hub/tests/|docs/specs/)' && git diff --quiet delegate/h3-3-ui -- hub/static/app.css hub/static/sw.js"
+    },
+    {
+      "name": "h3-5-install",
+      "spec": "docs/specs/h3-5-install.md",
+      "hard": false,
+      "verify": "set -o pipefail && python3 tools/run_tests.py hub.tests.test_install hub.tests.test_doctor daemon.tests.test_install_docs | tee /tmp/h3-rt.log && ! git diff --name-only delegate/h3-4-renew | grep -qvE '^(hub/install[.]sh$|hub/doctor[.]py$|hub/tests/(test_install|test_doctor)[.]py$|docs/hub-install[.]md$|docs/hub-agent-install[.]md$|README[.]md$|daemon/tests/test_install_docs[.]py$|docs/specs/)'"
+    },
+    {
+      "name": "h3-6-acceptance",
+      "spec": "docs/specs/h3-6-acceptance.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3-rt.log && for m in test_h2_browser test_h2c_browser test_sessions_ui test_h3_acceptance test_h3_browser test_h3_renew_browser test_two_origins test_ui; do grep -qE \"^ok +hub[.]tests[.]$m .* OK$\" /tmp/h3-rt.log || exit 1; done && ! git diff --name-only delegate/h3-5-install | grep -qvE '^(hub/tests/|docs/specs/)'"
+    }
+  ]
+}

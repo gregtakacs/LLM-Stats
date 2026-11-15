@@ -1,0 +1,38 @@
+{
+  "name": "h3w",
+  "repo": "../..",
+  "base": "h3w-base",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "h3w-1-roles-routing",
+      "spec": "docs/specs/h3w-1-roles-routing.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_roles .* OK$' /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_config .* OK$' /tmp/h3w-rt.log && ! git diff --name-only h3w-base | grep -qvE '^(hub/|docs/specs/h3w-)'"
+    },
+    {
+      "name": "h3w-2-ui-move",
+      "spec": "docs/specs/h3w-2-ui-move.md",
+      "hard": false,
+      "verify": "set -o pipefail && python3 tools/run_tests.py hub.tests.test_ui hub.tests.test_routing hub.tests.test_h2_browser | tee /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_routing .* OK$' /tmp/h3w-rt.log && ! git diff --name-only delegate/h3w-1-roles-routing | grep -qvE '^(hub/|docs/specs/h3w-)'"
+    },
+    {
+      "name": "h3w-3-opencode-renew",
+      "spec": "docs/specs/h3w-3-opencode-renew.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_opencode_renew .* OK$' /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_h2c_browser .* OK$' /tmp/h3w-rt.log && ! git diff --name-only delegate/h3w-2-ui-move | grep -qvE '^(hub/|docs/specs/h3w-)'"
+    },
+    {
+      "name": "h3w-4-installer-docs",
+      "spec": "docs/specs/h3w-4-installer-docs.md",
+      "hard": false,
+      "verify": "set -o pipefail && python3 tools/run_tests.py hub.tests.test_install hub.tests.test_doctor daemon.tests.test_install_docs | tee /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_install .* OK$' /tmp/h3w-rt.log && ! git diff --name-only delegate/h3w-3-opencode-renew | grep -qvE '^(hub/|docs/|daemon/tests/test_install_docs[.]py$)'"
+    },
+    {
+      "name": "h3w-5-acceptance",
+      "spec": "docs/specs/h3w-5-acceptance.md",
+      "hard": true,
+      "verify": "set -o pipefail && python3 tools/run_tests.py | tee /tmp/h3w-rt.log && grep -qE '^ok +hub[.]tests[.]test_h3_acceptance .* OK$' /tmp/h3w-rt.log && ! git diff --name-only delegate/h3w-4-installer-docs | grep -qvE '^(hub/|docs/specs/h3w-)'"
+    }
+  ]
+}
