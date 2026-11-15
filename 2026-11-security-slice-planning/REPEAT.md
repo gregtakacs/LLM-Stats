@@ -73,6 +73,12 @@ Copy `README.md`'s shape:
 
 Keep the plans unedited apart from placeholders.
 
+## Sanitising before you publish
+
+Run `../tools/sanitize.py` with your own rules file (kept outside the repo) over the raw
+artifacts, then sweep the output by hand for anything the deny-list didn't know about. Keep the
+plans unedited apart from the placeholders.
+
 ## Placeholders used here
 
 `{project}` the project, `{owner}` its owner, `{hub-host}` / `{opencode-host}` the two

@@ -1,0 +1,20 @@
+{
+  "replacements": [
+    ["/home/alice/src/myproject", "{repo}"],
+    ["/home/alice", "{home}"],
+    ["alice@example\\.org", "{owner-email}"],
+    ["\\bapp\\.example\\.org\\b", "{app-host}"],
+    ["example\\.org", "{domain}"],
+    ["\\bAlice's\\b", "{owner}'s"],
+    ["\\b[Aa]lice\\b", "{owner}"],
+    ["\\bmyproject\\b", "{project}"]
+  ],
+  "deny": [
+    "alice",
+    "example\\.org",
+    "myproject",
+    "/home/",
+    "\\b10\\.0\\.",
+    "\\b192\\.168\\."
+  ]
+}

@@ -11,3 +11,18 @@ the results can be checked rather than taken on trust.
 
 Names, addresses and local paths are replaced with placeholders such as `{owner}`, `{orb-ip}`
 and `{home}`.
+
+## Tools
+
+- [`tools/sanitize.py`](tools/sanitize.py) copies an experiment's raw artifacts to a publishable
+  folder, applying an ordered list of regex replacements, then fails if any deny pattern still
+  matches:
+
+  ```bash
+  python3 tools/sanitize.py ~/.config/llm-stats/sanitize-rules.json raw/ 2026-11-my-test/
+  ```
+
+  - The rules file holds the very names it removes, so it lives **outside every repo**. Start
+    from [`tools/sanitize-rules.example.json`](tools/sanitize-rules.example.json).
+  - A deny-list only finds what you thought to list. After a clean run, also sweep the output
+    for IP addresses, e-mail addresses and hostnames you didn't expect.
