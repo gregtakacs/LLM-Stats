@@ -1,7 +1,8 @@
 # A frontier model and a local model plan the same security-heavy slice
 
-**Result.** Given the same approved design, rules and base commit, a frontier model (run as a
-lead sub-agent) wrote a plan that could run as written. A self-hosted local model wrote one that
+**Result.** Given the same approved design, rules and base commit, a frontier model
+(Claude Opus 5.5 (Medium), run as a lead sub-agent) wrote a plan that could run as written. A self-hosted
+local model (Qwen 3.8 Flash Next (pennyroyal quantized build, xhigh)) wrote one that
 would have failed at its own first gate. Forced through, the local plan would also have shipped a
 security hole and an open redirect. Two blind scorers, one from each model family, ranked the
 plans the same way: frontier plan 11/14 from both, local plan 2/14 and 5/14. The local plan cost
@@ -9,9 +10,15 @@ no frontier tokens and took a third of the time. The local model was also a usab
 reached the same verdict for free but missed the worst defect.
 
 Placeholders such as `{project}`, `{owner}`, `{hub-host}` and `{opencode-host}` replace names,
-hosts and paths. Model names are replaced by their roles: **frontier model** (a hosted model in
-a frontier agent harness) and **local model** (a self-hosted open-weights model served over an
-OpenAI-compatible endpoint, run in its high-effort variant).
+hosts and paths.
+
+**The models:**
+- **Frontier: Claude Opus 5.5 (Medium)**, in Claude Code, on Anthropic's API. It was the planning lead and the
+  frontier scorer.
+- **Local (the worker): Qwen 3.8 Flash Next (pennyroyal quantized build, xhigh)**, self-hosted on an OpenAI-compatible endpoint and run by the
+  `delegate` harness with OpenCode as the agent. It was the local planner and the local scorer.
+
+The rest of this page calls them "frontier" and "local".
 
 ## The project
 
@@ -50,10 +57,10 @@ config, five high-level steps and the findings of the browser spike already run.
 
 ### The planners
 
-- **X. Local model**, through the `delegate` harness: one design task, high-effort variant, in an
+- **X. Local model, Qwen 3.8 Flash Next (pennyroyal quantized build, xhigh)**, through the `delegate` harness: one design task, high-effort variant, in an
   isolated worktree. Brief: [inputs/brief-local-planner.md](inputs/brief-local-planner.md),
   which follows the harness's design-brief template.
-- **Y. Frontier model**, as a `delegate-lead` sub-agent of the orchestrating frontier session. It
+- **Y. Frontier model, Claude Opus 5.5 (Medium)**, as a `delegate-lead` sub-agent of the orchestrating frontier session. It
   plans every step, writes the specs, then runs the chain. Brief:
   [inputs/brief-frontier-lead.md](inputs/brief-frontier-lead.md).
 
@@ -69,20 +76,20 @@ compared here.
 - **The plans were blinded** as X and Y: file prefixes renamed to `plan-`, and one line naming
   the author ("run by the slice lead") reworded.
 - **Two scorers got the identical brief** ([inputs/brief-scorer.md](inputs/brief-scorer.md)):
-  a fresh frontier-model agent, and the local model (high-effort) as a `delegate` task. Both read
+  a fresh Claude Opus 5.5 (Medium) agent, and Qwen 3.8 Flash Next (pennyroyal quantized build, xhigh) as a `delegate` task. Both read
   the real code to check every name a plan used.
 - **The orchestrator re-checked the top defects by hand** against the plan files and the design.
 
 ## Time and tokens
 
-| | X. Local planner | Y. Frontier lead |
+| | X. Local planner (Qwen 3.8 Flash Next, xhigh) | Y. Frontier lead (Claude Opus 5.5, Medium) |
 |---|---|---|
 | Wall-clock | 5 min 17 s | ~18 min (planning and starting its chain) |
 | Tool calls | 84 | 61 |
 | Tokens | 51,046 out (self-hosted, no API cost) | ~219,000 total (frontier API) |
 | Output | 5 step specs + design + chain, 746 lines | 6 step specs + chain + a browser-front spike script |
 
-| | Frontier scorer | Local scorer |
+| | Frontier scorer (Claude Opus 5.5, Medium) | Local scorer (Qwen 3.8 Flash Next, xhigh) |
 |---|---|---|
 | Wall-clock | 4 min 20 s | 7 min 29 s |
 | Tool calls | 21 | 67 |
@@ -90,7 +97,7 @@ compared here.
 
 ## Scores (0–2 per criterion, 14 max)
 
-| # | Criterion | Frontier scorer X / Y | Local scorer X / Y |
+| # | Criterion | Opus scorer X / Y | Qwen scorer X / Y |
 |---|---|---|---|
 | 1 | Rulings fidelity | 0 / 2 | 1 / 2 |
 | 2 | Boundary coverage | 1 / 2 | 1 / 2 |

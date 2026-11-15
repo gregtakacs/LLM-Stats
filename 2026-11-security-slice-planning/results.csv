@@ -1,5 +1,5 @@
-role,agent,model_class,wall_clock_s,tool_calls,tokens,tokens_kind,output_lines,score_by_frontier_scorer,score_by_local_scorer,max_score,runs_as_written
-planner,X_local_delegate,local_high_effort,317,84,51046,out_measured,746,2,5,14,no
-planner,Y_frontier_lead,frontier,1075,61,218842,total_measured_incl_chain_start,,11,11,14,yes
-scorer,frontier_fresh_agent,frontier,260,21,140632,total_measured,,,,,
-scorer,local_delegate,local_high_effort,449,67,85932,out_measured,,,,,
+role,agent,model,wall_clock_s,tool_calls,tokens,tokens_kind,output_lines,score_by_frontier_scorer,score_by_local_scorer,max_score,runs_as_written
+planner,X_local_delegate,qwen3.8-flash-next-pennyroyal-xhigh,317,84,51046,out_measured,746,2,5,14,no
+planner,Y_frontier_lead,claude-opus-5.5-medium,1075,61,218842,total_measured_incl_chain_start,,11,11,14,yes
+scorer,frontier_fresh_agent,claude-opus-5.5-medium,260,21,140632,total_measured,,,,,
+scorer,local_delegate,qwen3.8-flash-next-pennyroyal-xhigh,449,67,85932,out_measured,,,,,

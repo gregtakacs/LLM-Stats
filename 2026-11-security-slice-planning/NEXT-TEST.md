@@ -4,7 +4,8 @@
 
 The line between "delegate to the local model" and "keep with the frontier model" is not one
 line. It depends on two things: **what kind of change** it is, and **which phase** of the work.
-The evidence so far, all from one owner's real projects:
+The evidence so far, all from one owner's real projects (frontier: Claude Opus 5.5; local: Qwen 3.8
+Flash Next, pennyroyal quantized build):
 
 | Phase | Light work (UI, docs, installers) | Ordinary features with tests | Security boundaries |
 |---|---|---|---|

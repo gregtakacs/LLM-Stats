@@ -1,6 +1,6 @@
 # H3 plan comparison: rubric (fixed 2026-11-14, before either plan was read)
 
-Plans: A = delegate-lead ({frontier-model}), B = local worker (`h3w`, {local-model-high}). Same design doc,
+Plans: A = delegate-lead (Claude Opus 5.5 (Medium)), B = local worker (`h3w`, Qwen 3.8 Flash Next, pennyroyal quantized build, xhigh). Same design doc,
 same fixed rules, same base commit 1f19283.
 
 Score each 0–2, with evidence (spec file:line). Same scorer for both; read B's first where
@@ -24,7 +24,7 @@ possible.
 6. **Owner questions**: real gaps the design left open, not re-asking settled rulings.
 7. **Errors**: anything that would ship a bug or a security hole if followed literally.
 
-Also record: wall time, which model, and {frontier-model} cost (A: the lead's tokens; B: only my brief +
+Also record: wall time, which model, and Claude Opus 5.5 (Medium) cost (A: the lead's tokens; B: only my brief +
 review time).
 
 Limits of the comparison: one slice, one run each; only A's plan is executed, so B is judged on

@@ -77,4 +77,4 @@ Keep the plans unedited apart from placeholders.
 
 `{project}` the project, `{owner}` its owner, `{hub-host}` / `{opencode-host}` the two
 hostnames, `{repo}` the checkout path, `{infra-repo}` the owner's infrastructure repo,
-`{frontier-model}` / `{local-model-high}` the models, `{blind-dir}` the scorers' input folder.
+`{blind-dir}` the scorers' input folder.
