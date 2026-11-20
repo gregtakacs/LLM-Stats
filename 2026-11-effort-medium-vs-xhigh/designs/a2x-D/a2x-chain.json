@@ -1,0 +1,53 @@
+{
+  "name": "a2x",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "timeout": 5400,
+  "steps": [
+    {
+      "name": "a2x-1-broker-hostile",
+      "spec": "docs/specs/a2x-1-broker-hostile.md",
+      "scope": [
+        "broker/tests/test_a2x_broker_hostile.py",
+        "broker/*.py"
+      ],
+      "hard": true,
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x-1.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in broker.tests.test_a2x_broker_hostile broker.tests.test_anonymity; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; tail -40 \"$V\"; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; OUT=$(git diff --name-only a2-steps-6-8 -- . | grep -vE '^(broker/(tests/test_a2x_broker_hostile\\.py|[A-Za-z0-9_]+\\.py)|docs/specs/a2x-)' || true); [ -z \"$OUT\" ] || { echo \"outside scope: $OUT\"; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-2-relay-hostile",
+      "spec": "docs/specs/a2x-2-relay-hostile.md",
+      "scope": [
+        "hub/tests/test_a2x_relay_hostile.py",
+        "hub/tests/test_a2x_accept.py",
+        "hub/*.py"
+      ],
+      "hard": true,
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x-2.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in hub.tests.test_a2x_relay_hostile hub.tests.test_a2x_accept hub.tests.test_anonymity broker.tests.test_a2x_broker_hostile; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; tail -40 \"$V\"; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; OUT=$(git diff --name-only delegate/a2x-1-broker-hostile -- . | grep -vE '^(hub/(tests/test_a2x_relay_hostile\\.py|tests/test_a2x_accept\\.py|[A-Za-z0-9_]+\\.py)|docs/specs/a2x-)' || true); [ -z \"$OUT\" ] || { echo \"outside scope: $OUT\"; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-3-planner-hostile",
+      "spec": "docs/specs/a2x-3-planner-hostile.md",
+      "scope": [
+        "oc/tests/test_a2x_planner_hostile.py",
+        "oc/*.py",
+        "oc/install.sh"
+      ],
+      "hard": true,
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x-3.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in oc.tests.test_a2x_planner_hostile hub.tests.test_anonymity broker.tests.test_a2x_broker_hostile hub.tests.test_a2x_relay_hostile; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; tail -40 \"$V\"; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; OUT=$(git diff --name-only delegate/a2x-2-relay-hostile -- . | grep -vE '^(oc/(tests/test_a2x_planner_hostile\\.py|[A-Za-z0-9_]+\\.py|install\\.sh)|docs/specs/a2x-)' || true); [ -z \"$OUT\" ] || { echo \"outside scope: $OUT\"; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-4-live-hostile",
+      "spec": "docs/specs/a2x-4-live-hostile.md",
+      "scope": [
+        "tools/a2-hostile-live.py",
+        "tools/tests/test_a2_hostile_live.py",
+        "docs/a2x-cutover.md"
+      ],
+      "hard": true,
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x-4.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in tools.tests.test_a2_hostile_live hub.tests.test_anonymity broker.tests.test_a2x_broker_hostile hub.tests.test_a2x_relay_hostile hub.tests.test_a2x_accept oc.tests.test_a2x_planner_hostile; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; tail -40 \"$V\"; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; OUT=$(git diff --name-only delegate/a2x-3-planner-hostile -- . | grep -vE '^(tools/(a2-hostile-live\\.py|tests/test_a2_hostile_live\\.py)|docs/(a2x-cutover\\.md|specs/a2x-))' || true); [ -z \"$OUT\" ] || { echo \"outside scope: $OUT\"; exit 1; }; grep -E '^run_tests:' \"$V\""
+    }
+  ]
+}

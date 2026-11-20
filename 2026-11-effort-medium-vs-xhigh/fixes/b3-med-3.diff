@@ -1,0 +1,175 @@
+diff --git a/docs/bugs.md b/docs/bugs.md
+index 9347d05a..7833035b 100644
+--- a/docs/bugs.md
++++ b/docs/bugs.md
+@@ -34,12 +34,24 @@ fixed, set its status to `fixed`, add the commit or release, and leave the entry
+ 
+ ## B3. TestThePassParksForADemandAndResumesItsOwnQueue is flaky
+ 
+-- **Status:** open
++- **Status:** fixed (this commit, "orbnet: a handed-off lane files its new holder's socket")
+ - **Reported:** 2026-11-10, found while checking G3
+ - **Area:** Orb Manager's Go tests (`make check-hub`)
+ - **Symptom:** the test fails now and then with no code change. It failed 2 of 10 runs
+   (`go test -count=10 -run '^TestThePassParksForADemandAndResumesItsOwnQueue$' .`) on `main` at
+   ea04c30, inside `delegate-worker:{orb-image}`, and once in a full `check-hub` run on the G3 branch. It looks
+   like timing-dependent queue parking rather than a real fault.
+-- **Repro:** the `-count=10` command above, from `tools/{orb-tool}`.
+-- **Notes:** CI can fail on it at random, so a red `check-hub` should be re-run before it's believed.
++- **Repro:** the `-count=10` command above, from `tools/{orb-tool}`. Measured here at
++  `-count=200 -cpu 1,4` with two concurrent runs: 12 failures in ~1,200 runs, every one of them
++  `the resumed pass dialed 1 planes … use of closed network connection`.
++- **Cause:** a real fault, and not in the parking code — in the dial gate. `DialGate.release` handed
++  the lane to the next ticket without clearing `st.conn`, so the outgoing holder's just-closed socket
++  stayed filed; `noteConn` files a socket only onto a lane that names none, and so closed the
++  incoming holder's fresh connection instead of registering it. The pass dials its planes back to
++  back, so its second plane died at the socket whenever the transport closed the first plane's socket
++  after the pass had already re-queued, and the pass retired the queue one dial short.
++- **Fix:** the hand-off now clears `st.conn` — a lane that changes hands owns no socket until its new
++  holder files one, exactly as `Interrupt`'s contract says. `TestAHandedOffLaneFilesTheNewHoldersSocket`
++  (`internal/orbnet/lane_test.go`) drives the hand-off directly and fails without the fix.
++- **Notes:** the habit of re-running a red `check-hub` predates this entry and was right for the
++  week it existed; the failure it covered is gone.
+diff --git a/tools/{orb-tool}/internal/orbnet/lane.go b/tools/{orb-tool}/internal/orbnet/lane.go
+index 0b0e812e..422f2a92 100644
+--- a/tools/{orb-tool}/internal/orbnet/lane.go
++++ b/tools/{orb-tool}/internal/orbnet/lane.go
+@@ -349,7 +349,21 @@ func (g *DialGate) release(host string) {
+ 		// so a burst of control dials cannot leapfrog the ticket already next.
+ 		// The grant stamps the new holder's class: from this instant
+ 		// Interrupt may close this ticket's socket once the dialer files it.
++		//
++		// And the outgoing holder's socket goes unfiled HERE, not only on the
++		// free path below. conn names the CURRENT holder's socket, and the
++		// holder being handed off has just closed its own — that is what released
++		// the lane. Leaving the dead one filed made noteConn treat the incoming
++		// holder's fresh socket as "a lane already noted" and CLOSE it rather
++		// than register it, so a background dial that queued behind a
++		// just-released one died at the socket with net.ErrClosed and no cut
++		// stamp: the read-ahead pass dials its planes back to back, and its
++		// second plane went unread whenever the transport closed the first
++		// plane's socket after the pass had already re-queued (B3, 2026-11-20).
++		// There is no socket to cut between the grant and the dial, and the
++		// window is the dialer's own: noteConn files it the instant it opens.
+ 		st.bg = w.class == ClassBackground
++		st.conn = nil
+ 		w.granted = true
+ 		close(w.ready)
+ 		return
+diff --git a/tools/{orb-tool}/internal/orbnet/lane_test.go b/tools/{orb-tool}/internal/orbnet/lane_test.go
+index 72016a3e..96a20024 100644
+--- a/tools/{orb-tool}/internal/orbnet/lane_test.go
++++ b/tools/{orb-tool}/internal/orbnet/lane_test.go
+@@ -4,6 +4,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"io"
++	"net"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"strings"
+@@ -497,3 +498,104 @@ func TestPreemptingClientCutsABackgroundHolder(t *testing.T) {
+ 		t.Fatalf("the pass's dial was not cut: %v", err)
+ 	}
+ }
++
++// The hand-off a background queue makes against itself (B3, 2026-11-20): the read-ahead
++// pass dials its planes back to back, so its next plane's ticket lands in the queue while
++// the plane before it is still being read, and the hand-off fires the instant that read's
++// socket closes. The hand-off used to leave the OUTGOING holder's dead socket filed, and
++// noteConn — which files a socket only onto a lane naming none — closed the incoming
++// holder's fresh connection as a stale duplicate instead of registering it: the pass's
++// second plane came back "use of closed network connection", with no cut stamped for
++// warmAborted to forgive, and the pass retired its queue one dial short. A lane that
++// changes hands owns no socket until its new holder files one, and Interrupt must then
++// find THAT socket and not the dead one.
++func TestAHandedOffLaneFilesTheNewHoldersSocket(t *testing.T) {
++	g := NewDialGate()
++	const host = "10.0.0.9:80"
++
++	first, err := g.Acquire(context.Background(), host, ClassBackground)
++	if err != nil {
++		t.Fatalf("the first background ticket was declined: %v", err)
++	}
++	plane1 := &trackedConn{}
++	g.noteConn(host, plane1)
++
++	// The pass's next plane, queued behind the plane still streaming. It holds its
++	// lane until the test says so: the release its own dial would make must not free
++	// the lane under the assertions below.
++	granted, hold := make(chan *trackedConn, 1), make(chan struct{})
++	go func() {
++		rel, err := g.Acquire(context.Background(), host, ClassBackground)
++		if err != nil {
++			t.Errorf("the second background ticket was declined: %v", err)
++			close(granted)
++			return
++		}
++		defer rel()
++		plane2 := &trackedConn{}
++		g.noteConn(host, plane2) // the dialer files its socket the instant it opens
++		granted <- plane2
++		<-hold
++	}()
++
++	// The queue is the test's to look at, not to hope at: wait for the ticket to
++	// stand in it before the first holder lets go.
++	queued := false
++	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); time.Sleep(time.Millisecond) {
++		g.mu.Lock()
++		st := g.lanes[host]
++		queued = st != nil && len(st.waiters) == 1
++		g.mu.Unlock()
++		if queued {
++			break
++		}
++	}
++	if !queued {
++		t.Fatal("the second background ticket never queued behind the holder")
++	}
++	began := time.Now()
++	first() // plane one's socket closes: the release, and the hand-off with it
++	defer close(hold)
++
++	plane2, ok := <-granted
++	if !ok || plane2 == nil {
++		t.Fatal("the handed-off ticket never came back with a socket")
++	}
++	if plane2.isClosed() {
++		t.Fatal("noteConn closed the incoming holder's fresh socket as a stale duplicate: the " +
++			"hand-off left the outgoing holder's dead socket filed (B3)")
++	}
++	if !g.Interrupt(host) {
++		t.Fatal("Interrupt found nothing to cut on a lane a background holder holds open")
++	}
++	if !plane2.isClosed() {
++		t.Fatal("Interrupt said true and closed something that is not the current holder's socket")
++	}
++	if !g.CutSince(host, began) {
++		t.Fatal("Interrupt cut the socket and never stamped the cut")
++	}
++	if plane1.isClosed() {
++		t.Fatal("Interrupt closed the OUTGOING holder's socket: a lane names only its current holder")
++	}
++}
++
++// trackedConn is a net.Conn with nothing behind it: the gate only ever closes a filed
++// socket, so whether that close happened, and to whom, is the whole observation.
++type trackedConn struct {
++	net.Conn
++	mu   sync.Mutex
++	shut bool
++}
++
++func (c *trackedConn) Close() error {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	c.shut = true
++	return nil
++}
++
++func (c *trackedConn) isClosed() bool {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	return c.shut
++}

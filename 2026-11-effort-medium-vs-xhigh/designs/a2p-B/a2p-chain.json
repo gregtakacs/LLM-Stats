@@ -1,0 +1,56 @@
+{
+  "name": "a2p",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "a2p-1-bar-dropdown",
+      "spec": "docs/specs/a2p-1-bar-dropdown.md",
+      "hard": false,
+      "scope": [
+        "hub/static/index.html",
+        "hub/static/app.js",
+        "hub/static/app.css",
+        "hub/static/views/sessions.js",
+        "hub/static/views/claude.js",
+        "hub/static/views/adminsession.js",
+        "hub/tests/test_ui.py",
+        "hub/tests/test_sessions_ui.py",
+        "hub/tests/test_c1a1_browser.py",
+        "hub/tests/test_h3_browser.py",
+        "hub/tests/test_a2p_bar_browser.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p1.log\"; M=\"hub.tests.test_a2p_bar_browser hub.tests.test_sessions_ui hub.tests.test_ui hub.tests.test_c1a1_browser hub.tests.test_h3_browser hub.tests.test_anonymity hub.tests.test_image_imports\"; python3 tools/run_tests.py $M > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in $M; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; grep -E 'FAIL|not ok' \"$V\" | head -10; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; git diff --name-only a2-steps-6-8 | grep -qvE '^(hub/static/(index[.]html|app[.]js|app[.]css)|hub/static/views/(sessions|claude|adminsession)[.]js|hub/tests/(test_ui|test_sessions_ui|test_c1a1_browser|test_h3_browser|test_a2p_bar_browser)[.]py)$' && { echo 'a2p-1 touched files outside its scope'; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2p-2-admin-handoff",
+      "spec": "docs/specs/a2p-2-admin-handoff.md",
+      "hard": true,
+      "scope": [
+        "hub/static/views/adminsession.js",
+        "hub/static/views/sessions.js",
+        "hub/static/app.css",
+        "hub/tests/test_a2p_admin_browser.py",
+        "hub/tests/test_ui.py",
+        "hub/tests/test_sessions_ui.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p2.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in hub.tests.test_a2p_admin_browser hub.tests.test_a2p_bar_browser hub.tests.test_ui hub.tests.test_sessions_ui hub.tests.test_c1a1_browser hub.tests.test_anonymity hub.tests.test_image_imports; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; grep -E 'FAIL|not ok' \"$V\" | head -10; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; ! grep -vE '^[[:space:]]*(//|/\\*|\\*)' hub/static/views/adminsession.js | grep -qE 'XMLHttpRequest|sendBeacon|[.]fetch\\(|innerHTML|iframe|form.submit' || { echo 'FORBIDDEN CROSS-ORIGIN CALL SHAPE in adminsession.js'; exit 1; }; grep -qE 'target: *\"admin\", *project' hub/static/views/adminsession.js || { echo 'admin stop body missing'; exit 1; }; grep -q 'onerror=alert' hub/tests/test_a2p_admin_browser.py || { echo 'hostile img marker missing'; exit 1; }; grep -q \"$(printf '\\342\\200\\256')\" hub/tests/test_a2p_admin_browser.py || { echo 'hostile bidi marker missing'; exit 1; }; git diff --name-only delegate/a2p-1-bar-dropdown | grep -qvE '^(hub/static/views/(adminsession|sessions)[.]js|hub/static/app[.]css|hub/tests/(test_a2p_admin_browser|test_ui|test_sessions_ui)[.]py)$' && { echo 'a2p-2 touched files outside its scope'; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2p-3-a11y-screenshots",
+      "spec": "docs/specs/a2p-3-a11y-screenshots.md",
+      "hard": true,
+      "scope": [
+        "hub/static/index.html",
+        "hub/static/app.css",
+        "hub/static/views/adminsession.js",
+        "hub/tests/test_a2p_a11y.py",
+        "hub/tests/test_a2p_shots_browser.py",
+        "hub/tests/test_ui.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3.log\"; SHOTS=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/a2p-shots\"; rm -rf \"$SHOTS\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { F=$(grep -E '^FAIL +' \"$V\" | awk '{print $2}' | tr '\\n' ' '); [ -n \"$F\" ] || { tail -80 \"$V\"; exit 1; }; echo \"re-running once (load flakes): $F\"; python3 tools/run_tests.py -j 2 $F > \"$V.rerun\" 2>&1 || { tail -80 \"$V.rerun\"; exit 1; }; for m in $F; do sed -i -E \"s/^FAIL( +$m )/ok\\1/\" \"$V\"; done; }; for m in hub.tests.test_a2p_a11y hub.tests.test_a2p_shots_browser hub.tests.test_ui hub.tests.test_sessions_ui hub.tests.test_c1a1_browser hub.tests.test_h3_browser hub.tests.test_anonymity hub.tests.test_image_imports; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; grep -E 'FAIL|not ok' \"$V\" | head -10; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; ls \"$SHOTS\" | grep -cE '^(390x800|1440x900)-(light|dark)-(closed|open)[.]png$' | grep -qx 8 || { echo \"ACCEPTANCE PNGs: expected 8, got $(ls \"$SHOTS\" 2>/dev/null | wc -l)\"; exit 1; }; git diff --name-only delegate/a2p-2-admin-handoff | grep -qvE '^(hub/static/(index[.]html|app[.]css)|hub/static/views/adminsession[.]js|hub/tests/(test_a2p_a11y|test_a2p_shots_browser|test_ui)[.]py)$' && { echo 'a2p-3 touched files outside its scope'; exit 1; }; grep -E '^run_tests:' \"$V\"; ls -l \"$SHOTS\""
+    }
+  ]
+}

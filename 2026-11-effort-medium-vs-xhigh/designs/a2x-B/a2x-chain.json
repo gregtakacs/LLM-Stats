@@ -1,0 +1,84 @@
+{
+  "name": "a2x",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "a2x-1-broker-wire",
+      "spec": "docs/specs/a2x-1-broker-wire.md",
+      "hard": true,
+      "scope": [
+        "broker/tests/test_a2x_hostile.py",
+        "broker/tests/util.py",
+        "broker/tests/fakes/delegate",
+        "broker/tests/fakes/docker",
+        "broker/tests/fakes/git",
+        "broker/tests/fakes/gh",
+        "docs/specs/a2x-design.md"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x1.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +broker[.]tests[.]test_protocol ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_server ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_paths ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_delegate_read ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_push ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_gh ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_service ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_groups_hostile ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_hostile ' \"$V\" || { echo MISSING MODULE; grep -E 'broker' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; [ \"$(grep -cE 'def test_B[0-9]+' broker/tests/test_a2x_hostile.py)\" -ge 18 ] || { echo TOO FEW B-CASES; exit 1; }; ! grep -nE 'shell=True|os[.]system|os[.]popen' broker/tests/test_a2x_hostile.py || { echo SHELL USE; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-2-broker-files-config",
+      "spec": "docs/specs/a2x-2-broker-files-config.md",
+      "hard": true,
+      "scope": [
+        "broker/tests/test_a2x_gitconfig.py",
+        "broker/tests/test_a2x_files.py",
+        "broker/tests/util.py",
+        "broker/tests/fakes/delegate",
+        "broker/repocheck.py",
+        "broker/delegate_rules.py",
+        "broker/paths.py",
+        "docs/specs/a2x-design.md"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x2.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +broker[.]tests[.]test_protocol ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_server ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_paths ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_delegate_read ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_push ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_gh ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_service ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_groups_hostile ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_hostile ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_gitconfig ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_files ' \"$V\" || { echo MISSING MODULE; grep -E 'broker' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; grep -qE 'credential' broker/repocheck.py || { echo B17 NOT FIXED; exit 1; }; [ \"$(cat broker/tests/test_a2x_gitconfig.py broker/tests/test_a2x_files.py | grep -cE 'def test_B[0-9]+')\" -ge 12 ] || { echo TOO FEW B-CASES; exit 1; }; ! grep -rnE --include=*.py --exclude-dir=tests 'shell=True|os[.]system|os[.]popen' broker/ || { echo SHELL USE; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-3-planner-relay",
+      "spec": "docs/specs/a2x-3-planner-relay.md",
+      "hard": true,
+      "scope": [
+        "oc/tests/test_a2x_planner.py",
+        "hub/tests/test_a2x_relay.py",
+        "oc/projects.py",
+        "oc/projinstall.py",
+        "oc/install.sh",
+        "hub/gate.py",
+        "hub/proxy.py",
+        "hub/routes.py",
+        "docs/specs/a2x-design.md"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x3.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +broker[.]tests[.]test_protocol ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_server ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_paths ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_delegate_read ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_push ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_gh ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_service ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_groups_hostile ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_relay ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_projects ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_proxy_hardening ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_projects ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_install ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_migrate ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_proxy_templates ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_a2x_planner ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_a2x_relay ' \"$V\" || { echo MISSING MODULE; grep -E 'broker|hub|oc' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; grep -qE 'is_link_local|is_multicast|is_unspecified' oc/projects.py || { echo K7 NOT FIXED; exit 1; }; [ \"$(cat oc/tests/test_a2x_planner.py hub/tests/test_a2x_relay.py | grep -cE 'def test_[KR][0-9]+')\" -ge 15 ] || { echo TOO FEW K/R-CASES; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-4-migrate-live",
+      "spec": "docs/specs/a2x-4-migrate-live.md",
+      "hard": true,
+      "scope": [
+        "oc/tests/test_a2x_migrate.py",
+        "tools/a2-hostile-live.py",
+        "tools/tests/test_a2_hostile_live.py",
+        "oc/migrate.py",
+        "oc/sessions.py",
+        "docs/specs/a2x-design.md"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x4.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +oc[.]tests[.]test_projects ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_install ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_migrate ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_proxy_templates ' \"$V\" && grep -qE '^ok +tools[.]tests[.]test_run_tests_tmp ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_a2x_migrate ' \"$V\" && grep -qE '^ok +tools[.]tests[.]test_a2_hostile_live ' \"$V\" || { echo MISSING MODULE; grep -E 'oc|tools' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; python3 -c \"import ast; ast.parse(open('tools/a2-hostile-live.py').read())\" || { echo SCRIPT DOES NOT PARSE; exit 1; }; grep -q 'LIVE: ' tools/a2-hostile-live.py || { echo NO SUMMARY LINE; exit 1; }; grep -q '\\-\\-dry-run' tools/a2-hostile-live.py || { echo NO DRY RUN; exit 1; }; [ \"$(grep -cE 'def test_' tools/tests/test_a2_hostile_live.py)\" -ge 7 ] || { echo TOO FEW LIVE UNITS; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2x-5-coverage-closeout",
+      "spec": "docs/specs/a2x-5-coverage-closeout.md",
+      "hard": true,
+      "scope": [
+        "review/a2x-hostile.py",
+        "docs/specs/a2x-design.md",
+        "docs/handoff.md",
+        "tools/a2-hostile-live.py",
+        "tools/tests/test_a2_hostile_live.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x5.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +broker[.]tests[.]test_protocol ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_server ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_paths ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_delegate_read ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_push ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_gh ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_service ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_groups_hostile ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_relay ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_projects ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_proxy_hardening ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_projects ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_install ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_migrate ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_proxy_templates ' \"$V\" && grep -qE '^ok +tools[.]tests[.]test_run_tests_tmp ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_hostile ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_gitconfig ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_a2x_files ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_a2x_planner ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_a2x_relay ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_a2x_migrate ' \"$V\" && grep -qE '^ok +tools[.]tests[.]test_a2_hostile_live ' \"$V\" || { echo MISSING MODULE; grep -E 'broker|hub|oc|tools' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; python3 review/a2x-hostile.py --list . | grep -q S1 || { echo NO CASES; exit 1; }; grep -q 'a2x\\-hostile' docs/handoff.md || { echo NOT IN REVIEW TABLE; exit 1; }; ! grep -qE 'TBD|covered by \\?\\?' docs/specs/a2x-design.md || { echo TABLE INCOMPLETE; exit 1; }; grep -E '^run_tests:' \"$V\""
+    }
+  ]
+}

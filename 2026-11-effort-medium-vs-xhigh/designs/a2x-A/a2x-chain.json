@@ -1,0 +1,68 @@
+{
+  "name": "a2x",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "a2x-1-broker-write-hostile",
+      "spec": "docs/specs/a2x-1-broker-write-hostile.md",
+      "hard": true,
+      "scope": [
+        "broker/tests/test_a2x_write_hostile.py",
+        "broker/tests/util.py",
+        "broker/tests/fakes/git",
+        "broker/paths.py",
+        "broker/server.py",
+        "broker/protocol.py",
+        "broker/client.py",
+        "broker/audit.py",
+        "broker/git_push.py",
+        "broker/runner.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x1.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +broker[.]tests[.]test_a2x_write_hostile ' \"$V\" || { echo MISSING MODULE; grep -E 'a2x|FAIL' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL +|^not ok' \"$V\" | head; exit 1; }; grep -E '^run_tests:' \"$V\"; git diff --name-only \"$(git merge-base HEAD a2-steps-6-8)\" > /tmp/a2x1-changed.txt; git ls-files --others --exclude-standard >> /tmp/a2x1-changed.txt; ! grep -vE '^(docs/specs/a2x[a-z0-9._-]*|broker/tests/test_a2x_write_hostile[.]py|broker/tests/util[.]py|broker/tests/fakes/git|broker/(paths|server|protocol|client|audit|git_push|runner)[.]py)$' /tmp/a2x1-changed.txt | grep ."
+    },
+    {
+      "name": "a2x-2-install-plan-hostile",
+      "spec": "docs/specs/a2x-2-install-plan-hostile.md",
+      "hard": true,
+      "scope": [
+        "oc/tests/test_a2x_plan_hostile.py",
+        "oc/tests/test_a2x_migrate_hostile.py",
+        "oc/tests/util.py",
+        "oc/projects.py",
+        "oc/projinstall.py",
+        "oc/migrate.py",
+        "oc/sessions.py",
+        "oc/install.sh"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x2.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +oc[.]tests[.]test_a2x_plan_hostile ' \"$V\" || { echo MISSING PLAN MODULE; grep -E 'a2x|FAIL' \"$V\" | head -40; exit 1; }; grep -qE '^ok +oc[.]tests[.]test_a2x_migrate_hostile ' \"$V\" || { echo MISSING MIGRATE MODULE; grep -E 'a2x|FAIL' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL +|^not ok' \"$V\" | head; exit 1; }; grep -E '^run_tests:' \"$V\"; git diff --name-only \"$(git merge-base HEAD a2-steps-6-8)\" > /tmp/a2x2-changed.txt; git ls-files --others --exclude-standard >> /tmp/a2x2-changed.txt; ! grep -vE '^(docs/specs/a2x[a-z0-9._-]*|oc/tests/test_a2x_(plan|migrate)_hostile[.]py|oc/tests/util[.]py|oc/(projects|projinstall|migrate|sessions)[.]py|oc/install[.]sh)$' /tmp/a2x2-changed.txt | grep ."
+    },
+    {
+      "name": "a2x-3-hub-launcher-hostile",
+      "spec": "docs/specs/a2x-3-hub-launcher-hostile.md",
+      "hard": true,
+      "scope": [
+        "hub/tests/test_a2x_relay_hostile.py",
+        "launcher/tests/test_a2x_oc_hostile.py",
+        "hub/tests/httputil.py",
+        "launcher/tests/util.py",
+        "hub/routes.py",
+        "hub/projects.py",
+        "launcher/oc.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x3.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +hub[.]tests[.]test_a2x_relay_hostile ' \"$V\" || { echo MISSING HUB MODULE; grep -E 'a2x|FAIL' \"$V\" | head -40; exit 1; }; grep -qE '^ok +launcher[.]tests[.]test_a2x_oc_hostile ' \"$V\" || { echo MISSING LAUNCHER MODULE; grep -E 'a2x|FAIL' \"$V\" | head -40; exit 1; }; grep -qE '^ok +hub[.]tests[.]test_anonymity ' \"$V\" || { echo ANONYMITY NOT RUN; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL +|^not ok' \"$V\" | head; exit 1; }; grep -E '^run_tests:' \"$V\"; git diff --name-only \"$(git merge-base HEAD a2-steps-6-8)\" > /tmp/a2x3-changed.txt; git ls-files --others --exclude-standard >> /tmp/a2x3-changed.txt; ! grep -vE '^(docs/specs/a2x[a-z0-9._-]*|(hub|launcher)/tests/test_a2x_[a-z_]*hostile[.]py|hub/tests/httputil[.]py|launcher/tests/util[.]py|hub/(routes|projects)[.]py|launcher/oc[.]py)$' /tmp/a2x3-changed.txt | grep ."
+    },
+    {
+      "name": "a2x-4-live-container-probes",
+      "spec": "docs/specs/a2x-4-live-container-probes.md",
+      "hard": true,
+      "scope": [
+        "tools/a2-hostile-live.py",
+        "tools/tests/test_a2_hostile_live.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x4.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +tools[.]tests[.]test_a2_hostile_live ' \"$V\" || { echo MISSING MODULE; grep -E 'a2x|FAIL|tools' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL +|^not ok' \"$V\" | head; exit 1; }; grep -E '^run_tests:' \"$V\"; python3 tools/a2-hostile-live.py --dry-run --project A --other B | grep -q '^PLAN socket_perms' || { echo DRY RUN PLAN MISSING; exit 1; }; python3 tools/a2-hostile-live.py --dry-run --project A --other B | grep -q '^PLAN hub_prefix_mismatch' || { echo PLAN HUB PROBE MISSING; exit 1; }; python3 tools/a2-hostile-live.py --dry-run '--project=;rm' --other B > /dev/null 2>&1; test $? -eq 2 || { echo BAD NAME NOT REFUSED; exit 1; }; git diff --name-only \"$(git merge-base HEAD a2-steps-6-8)\" > /tmp/a2x4-changed.txt; git ls-files --others --exclude-standard >> /tmp/a2x4-changed.txt; ! grep -vE '^(docs/specs/a2x[a-z0-9._-]*|tools/a2-hostile-live[.]py|tools/tests/test_a2_hostile_live[.]py)$' /tmp/a2x4-changed.txt | grep ."
+    }
+  ]
+}

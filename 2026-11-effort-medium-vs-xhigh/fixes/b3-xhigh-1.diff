@@ -1,0 +1,199 @@
+diff --git a/docs/bugs.md b/docs/bugs.md
+index 9347d05a..d0c04e2b 100644
+--- a/docs/bugs.md
++++ b/docs/bugs.md
+@@ -34,12 +34,24 @@ fixed, set its status to `fixed`, add the commit or release, and leave the entry
+ 
+ ## B3. TestThePassParksForADemandAndResumesItsOwnQueue is flaky
+ 
+-- **Status:** open
++- **Status:** fixed (the commit that adds this entry: orbnet `DialGate.release` hands the lane to the
++  next ticket with an empty socket slot; `TestHandoffGrantsALaneWithAnEmptySocketSlot` pins it)
+ - **Reported:** 2026-11-10, found while checking G3
+ - **Area:** Orb Manager's Go tests (`make check-hub`)
+ - **Symptom:** the test fails now and then with no code change. It failed 2 of 10 runs
+   (`go test -count=10 -run '^TestThePassParksForADemandAndResumesItsOwnQueue$' .`) on `main` at
+   ea04c30, inside `delegate-worker:{orb-image}`, and once in a full `check-hub` run on the G3 branch. It looks
+   like timing-dependent queue parking rather than a real fault.
+-- **Repro:** the `-count=10` command above, from `tools/{orb-tool}`.
+-- **Notes:** CI can fail on it at random, so a red `check-hub` should be re-run before it's believed.
++- **Cause:** a real race, in the hub and not the test. When `DialGate.release` handed the lane straight
++  to a queued ticket it left the PREVIOUS holder's filed socket in the lane's slot (only the idle path
++  cleared it). The granted background holder's fresh socket then met `noteConn`'s "a socket is already
++  noted" rule and was closed as late — the resumed pass's second plane died with `read: use of closed
++  network connection` although the hub had cut nothing, so no abort stamp existed, the pass recorded a
++  strike against a healthy card, and the test saw one plane dialled. Every one of 116 failures across
++  two loaded `-count=200` runs had that single signature.
++- **Fix:** `release` clears the socket slot at the grant, the way the idle path already did: a grant
++  always lands on an empty slot, and the new holder's `noteConn` files its own socket.
++- **Repro:** the `-count=10` command above, from `tools/{orb-tool}`, fails ~15% under parallel CPU
++  load without the fix; green for 800 reps under the same load with it, and for `-race -count=300`
++  and `-count=500`.
++- **Notes:** the CI retry added in `35a4dd8e` stays as cheap insurance until this ships.
+diff --git a/tools/{orb-tool}/internal/orbnet/lane.go b/tools/{orb-tool}/internal/orbnet/lane.go
+index 0b0e812e..118ff1a4 100644
+--- a/tools/{orb-tool}/internal/orbnet/lane.go
++++ b/tools/{orb-tool}/internal/orbnet/lane.go
+@@ -350,6 +350,14 @@ func (g *DialGate) release(host string) {
+ 		// The grant stamps the new holder's class: from this instant
+ 		// Interrupt may close this ticket's socket once the dialer files it.
+ 		st.bg = w.class == ClassBackground
++		// The grant must land on an empty socket slot. Whatever is filed here
++		// belongs to the holder that just let go — dead by the time this runs,
++		// because a laneConn closes its socket before it releases. Left filed,
++		// the next background dial's noteConn reads "a socket is already noted"
++		// and closes the fresh one as late, killing a live request with no cut
++		// and no stamp (docs/bugs.md B3). The holder whose socket this was has
++		// nothing left to interrupt; drop it.
++		st.conn = nil
+ 		w.granted = true
+ 		close(w.ready)
+ 		return
+diff --git a/tools/{orb-tool}/internal/orbnet/lane_test.go b/tools/{orb-tool}/internal/orbnet/lane_test.go
+index 72016a3e..9098197d 100644
+--- a/tools/{orb-tool}/internal/orbnet/lane_test.go
++++ b/tools/{orb-tool}/internal/orbnet/lane_test.go
+@@ -4,6 +4,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"io"
++	"net"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"strings"
+@@ -462,6 +463,135 @@ func TestBackgroundQueuesBehindBulk(t *testing.T) {
+ 	}
+ }
+ 
++// A handoff must hand over an empty socket slot. release() files nothing for
++// the new holder — noteConn does that when the dialer's socket opens — but if
++// the granting path leaves the PREVIOUS holder's filed socket in st.conn, the
++// new background holder's fresh socket is treated as a late note from a dead
++// ticket and closed out from under it: the warm pass's second plane then died
++// with "use of closed network connection" while the hub had cut nothing
++// (docs/bugs.md B3). Forced here without timing luck: hold, queue, hand off,
++// note, use.
++func TestHandoffGrantsALaneWithAnEmptySocketSlot(t *testing.T) {
++	g := NewDialGate()
++	const host = "10.0.0.31:80"
++	ln, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	go func() { // every socket that reaches the listener answers one request
++		for {
++			c, aerr := ln.Accept()
++			if aerr != nil {
++				return
++			}
++			go func(c net.Conn) {
++				buf := make([]byte, 1)
++				_, _ = c.Read(buf)
++				_, _ = c.Write([]byte("ok"))
++				c.Close()
++			}(c)
++		}
++	}()
++
++	// The pass's first plane: a background holder with its socket filed.
++	release1, err := g.Acquire(context.Background(), host, ClassBackground)
++	if err != nil {
++		t.Fatal(err)
++	}
++	conn1, err := net.Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	g.noteConn(host, conn1)
++	if filed := filedConn(g, host); filed != conn1 {
++		t.Fatalf("a background holder's socket was not filed: %v", filed)
++	}
++
++	// The pass's second plane queues behind it, as the next loop leg does.
++	granted := make(chan func(), 1)
++	go func() {
++		release, err := g.Acquire(context.Background(), host, ClassBackground)
++		if err != nil {
++			t.Errorf("second background Acquire: %v", err)
++			granted <- nil
++			return
++		}
++		granted <- release
++	}()
++	if !waitFor(func() bool { return queuedCount(g, host) == 1 }, 2*time.Second) {
++		t.Fatal("the second ticket never joined the queue")
++	}
++
++	// The first plane's response drains and its transport closes the socket,
++	// laneConn-style: socket first, release second. That release finds the
++	// queued ticket and hands the lane over.
++	conn1.Close()
++	release1()
++	release2 := <-granted
++	if release2 == nil {
++		t.Fatal("the handoff never reached the queued ticket")
++	}
++	defer release2()
++
++	// The new holder dials and files, exactly as gatedDialer does.
++	conn2, err := net.Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn2.Close()
++	g.noteConn(host, conn2)
++	if filed := filedConn(g, host); filed != conn2 {
++		t.Fatalf("the granted holder's socket was not filed; the lane is still noting %v", filed)
++	}
++	// And the socket must still be usable — this is the call the warm pass
++	// makes on its second plane.
++	_ = conn2.SetReadDeadline(time.Now().Add(5 * time.Second))
++	if _, err := conn2.Write([]byte("g")); err != nil {
++		t.Fatalf("the filed socket died before it was used: %v", err)
++	}
++	reply := make([]byte, 2)
++	if _, err := io.ReadFull(conn2, reply); err != nil {
++		t.Fatalf("the granted holder's fresh socket was closed under it: %v", err)
++	}
++	if string(reply) != "ok" {
++		t.Fatalf("the socket answered %q, want ok", reply)
++	}
++}
++
++func filedConn(g *DialGate, host string) net.Conn {
++	g.mu.Lock()
++	defer g.mu.Unlock()
++	if st := g.lanes[host]; st != nil {
++		return st.conn
++	}
++	return nil
++}
++
++func queuedCount(g *DialGate, host string) int {
++	g.mu.Lock()
++	defer g.mu.Unlock()
++	if st := g.lanes[host]; st != nil {
++		return len(st.waiters)
++	}
++	return 0
++}
++
++// waitFor bounds a wait for a condition the gate will reach on its own (a
++// queued ticket appearing); it times out loudly rather than encoding a hope.
++func waitFor(cond func() bool, d time.Duration) bool {
++	deadline := time.Now().Add(d)
++	for {
++		if cond() {
++			return true
++		}
++		if time.Now().After(deadline) {
++			return false
++		}
++		time.Sleep(time.Millisecond)
++	}
++}
++
+ // A Preempting client's dial carries the mark through the transport: the page's
+ // preview transport cuts the pass's in-flight plane rather than wait it out.
+ func TestPreemptingClientCutsABackgroundHolder(t *testing.T) {

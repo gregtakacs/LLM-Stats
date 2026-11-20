@@ -1,0 +1,52 @@
+{
+  "name": "a2p",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "a2p-1-picker-bar",
+      "spec": "docs/specs/a2p-1-picker-bar.md",
+      "hard": false,
+      "scope": [
+        "hub/static/index.html",
+        "hub/static/app.css",
+        "hub/static/app.js",
+        "hub/static/state.js",
+        "hub/static/views/sessions.js",
+        "hub/tests/test_ui.py",
+        "hub/tests/test_a2p_bar.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p1.log\"; python3 tools/run_tests.py hub.tests.test_a2p_bar hub.tests.test_ui hub.tests.test_anonymity > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +hub[.]tests[.]test_a2p_bar ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_ui ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_anonymity ' \"$V\" || { echo MISSING MODULE; grep -E 'hub' \"$V\" | head -60; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; ! grep -n 'innerHTML' hub/static/views/sessions.js hub/static/app.js || { echo INNERHTML; exit 1; }; ! grep -nE '<select[^>]*chat-project' hub/static/index.html || { echo SELECT BAR; exit 1; }; grep -q 'picker-new-claude' hub/static/index.html && grep -q 'aria-controls=\"session-picker\"' hub/static/index.html || { echo BAR CONTRACT; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2p-2-dropdown-handoff",
+      "spec": "docs/specs/a2p-2-dropdown-handoff.md",
+      "hard": true,
+      "scope": [
+        "hub/static/views/sessions.js",
+        "hub/static/views/running.js",
+        "hub/tests/test_a2p_dropdown.py",
+        "hub/tests/test_sessions_ui.py",
+        "hub/tests/test_ui.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p2.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +hub[.]tests[.]test_a2p_bar ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_a2p_dropdown ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_ui ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_sessions_ui ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_anonymity ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_image_imports ' \"$V\" || { echo MISSING MODULE; grep -E 'hub' \"$V\" | head -60; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; ! grep -nE 'window[.]open|XMLHttpRequest' hub/static/views/sessions.js || { echo POPUP XHR; exit 1; }; ! grep -n 'innerHTML' hub/static/views/sessions.js hub/static/views/running.js || { echo INNERHTML; exit 1; }; grep -q 'location[.]assign' hub/static/views/sessions.js && grep -q 'encodeURIComponent' hub/static/views/sessions.js || { echo NO HANDOFF; exit 1; }; grep -E '^run_tests:' \"$V\""
+    },
+    {
+      "name": "a2p-3-browser-acceptance",
+      "spec": "docs/specs/a2p-3-browser-acceptance.md",
+      "hard": true,
+      "scope": [
+        "hub/tests/test_a2p_browser.py",
+        "hub/static/views/sessions.js",
+        "hub/static/views/running.js",
+        "hub/static/index.html",
+        "hub/static/app.css",
+        "hub/static/app.js",
+        "hub/static/state.js"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +hub[.]tests[.]test_a2p_bar ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_a2p_dropdown ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_a2p_browser ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_ui ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_sessions_ui ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_anonymity ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_image_imports ' \"$V\" || { echo MISSING MODULE; grep -E 'hub' \"$V\" | head -60; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; S=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/a2p-shots\"; for f in 390x800-light-closed 390x800-light-open 390x800-dark-closed 390x800-dark-open 1440x900-light-closed 1440x900-light-open 1440x900-dark-closed 1440x900-dark-open; do test -s \"$S/$f.png\" || { echo MISSING SHOT \"$S/$f.png\"; exit 1; }; done; grep -E '^run_tests:' \"$V\""
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "name": "a2p",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "spec": "docs/specs/a2p-design.md",
+  "steps": [
+    {
+      "name": "a2p-1-bar-controls",
+      "spec": "docs/specs/a2p-1-bar-controls.md",
+      "hard": true,
+      "scope": [
+        "hub/static/index.html",
+        "hub/static/app.css",
+        "hub/static/app.js",
+        "hub/static/views/sessions.js",
+        "hub/static/views/claude.js",
+        "hub/static/views/running.js",
+        "hub/tests/test_ui.py",
+        "hub/tests/test_a2p_picker_source.py",
+        "docs/specs/a2p-design.md"
+      ],
+      "verify": "python3 tools/run_tests.py hub.tests.test_a2p_picker_source hub.tests.test_ui hub.tests.test_c1a1_ui hub.tests.test_c1a1_browser hub.tests.test_a2d_ui hub.tests.test_a2f_ui 2>&1 | tee \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p1.log\" && grep -qE '^ok[[:space:]]+hub\\.tests\\.test_a2p_picker_source' \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p1.log\" && node --check hub/static/views/sessions.js && node --check hub/static/views/claude.js && node --check hub/static/app.js && node --check hub/static/views/running.js && test -z \"$(git diff --name-only HEAD | grep -vE '^(docs/specs/a2p|hub/static/(index\\.html|app\\.css|app\\.js|views/(sessions|claude|running)\\.js)|hub/tests/(test_ui|test_a2p_picker_source)\\.py)$')\" && echo SCOPE-OK"
+    },
+    {
+      "name": "a2p-2-admin-rows-security",
+      "spec": "docs/specs/a2p-2-admin-rows-security.md",
+      "hard": true,
+      "scope": [
+        "hub/static/views/sessions.js",
+        "hub/tests/test_a2p_rows_security.py",
+        "hub/tests/test_a2p_picker_source.py"
+      ],
+      "verify": "python3 tools/run_tests.py hub.tests.test_a2p_rows_security hub.tests.test_a2p_picker_source hub.tests.test_ui hub.tests.test_c1a1_browser hub.tests.test_a2e_ui hub.tests.test_a2a_ui 2>&1 | tee \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p2.log\" && grep -qE '^ok[[:space:]]+hub\\.tests\\.test_a2p_rows_security' \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p2.log\" && test -z \"$(git diff --name-only HEAD | grep -vE '^(docs/specs/a2p|hub/static/views/sessions\\.js|hub/tests/test_a2p_rows_security\\.py|hub/tests/test_a2p_picker_source\\.py)$')\" && echo SCOPE-OK"
+    },
+    {
+      "name": "a2p-3-browser-shots",
+      "spec": "docs/specs/a2p-3-browser-shots.md",
+      "hard": false,
+      "scope": [
+        "hub/tests/test_a2p_shots.py",
+        "docs/specs/a2p-design.md"
+      ],
+      "verify": "python3 tools/run_tests.py hub.tests.test_a2p_shots 2>&1 | tee \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3.log\" && grep -qE '^ok[[:space:]]+hub\\.tests\\.test_a2p_shots' \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3.log\" && test \"$(ls \"${DELEGATE_EVIDENCE_DIR:-/tmp}/a2p-shots\" 2>/dev/null | wc -l)\" = 8 && ls \"${DELEGATE_EVIDENCE_DIR:-/tmp}/a2p-shots\" && python3 tools/run_tests.py 2>&1 | tee \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3-full.log\" && grep -cE '^FAIL ' \"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3-full.log\" | grep -qx 0 && test -z \"$(git diff --name-only HEAD | grep -vE '^(docs/specs/a2p|hub/tests/test_a2p_shots\\.py)$')\" && echo SCOPE-OK"
+    }
+  ]
+}

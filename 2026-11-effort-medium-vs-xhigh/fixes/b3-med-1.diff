@@ -1,0 +1,143 @@
+diff --git a/docs/bugs.md b/docs/bugs.md
+index 9347d05a..cd4d68c6 100644
+--- a/docs/bugs.md
++++ b/docs/bugs.md
+@@ -34,7 +34,8 @@ fixed, set its status to `fixed`, add the commit or release, and leave the entry
+ 
+ ## B3. TestThePassParksForADemandAndResumesItsOwnQueue is flaky
+ 
+-- **Status:** open
++- **Status:** fixed (the commit that sets this status; message: "orbnet: un-file the
++  outgoing holder's socket at the lane hand-off")
+ - **Reported:** 2026-11-10, found while checking G3
+ - **Area:** Orb Manager's Go tests (`make check-hub`)
+ - **Symptom:** the test fails now and then with no code change. It failed 2 of 10 runs
+@@ -42,4 +43,10 @@ fixed, set its status to `fixed`, add the commit or release, and leave the entry
+   ea04c30, inside `delegate-worker:{orb-image}`, and once in a full `check-hub` run on the G3 branch. It looks
+   like timing-dependent queue parking rather than a real fault.
+ - **Repro:** the `-count=10` command above, from `tools/{orb-tool}`.
++- **Fix:** a real race in the dial gate, not the test: when `DialGate.release` handed a
++  lane directly to a queued ticket it left the outgoing holder's socket filed, so the
++  incoming background dial's `noteConn` refused and closed its fresh socket — the resumed
++  pass's second plane died with "use of closed network connection", was struck as a card
++  failure, and the queue finished with 1 dial instead of 2. `lane.go` now clears the filed
++  socket at the hand-off, pinned by `TestAHandedOffLaneCarriesInTheIncomingDialSocket`.
+ - **Notes:** CI can fail on it at random, so a red `check-hub` should be re-run before it's believed.
+diff --git a/tools/{orb-tool}/internal/orbnet/lane.go b/tools/{orb-tool}/internal/orbnet/lane.go
+index 0b0e812e..e18471cd 100644
+--- a/tools/{orb-tool}/internal/orbnet/lane.go
++++ b/tools/{orb-tool}/internal/orbnet/lane.go
+@@ -349,6 +349,15 @@ func (g *DialGate) release(host string) {
+ 		// so a burst of control dials cannot leapfrog the ticket already next.
+ 		// The grant stamps the new holder's class: from this instant
+ 		// Interrupt may close this ticket's socket once the dialer files it.
++		// The outgoing holder's socket leaves the file with it: the next
++		// background dial notes its own socket onto the lane, and noteConn
++		// refuses any socket that arrives onto a lane already noted. A dead
++		// holder's conn left here closed the incoming dial's fresh socket
++		// before its request was written — the read-ahead's next plane died
++		// with "use of closed network connection" whenever one dial's
++		// transport-side close landed after the next dial had already
++		// queued (the B3 flake, documented 2026-11-10, rooted 2026-11-20).
++		st.conn = nil
+ 		st.bg = w.class == ClassBackground
+ 		w.granted = true
+ 		close(w.ready)
+diff --git a/tools/{orb-tool}/internal/orbnet/lane_test.go b/tools/{orb-tool}/internal/orbnet/lane_test.go
+index 72016a3e..da2b3e58 100644
+--- a/tools/{orb-tool}/internal/orbnet/lane_test.go
++++ b/tools/{orb-tool}/internal/orbnet/lane_test.go
+@@ -497,3 +497,93 @@ func TestPreemptingClientCutsABackgroundHolder(t *testing.T) {
+ 		t.Fatalf("the pass's dial was not cut: %v", err)
+ 	}
+ }
++
++// A hand-off must un-file the outgoing holder's socket along with its claim.
++// A background dial's socket is filed with noteConn, and noteConn closes any
++// socket arriving onto a lane that already carries one — a stale filing from
++// the dial that just died made the NEXT background dial's fresh socket the
++// refused one: it was closed inside its own DialContext and the request died
++// with "use of closed network connection" without ever reaching the orb. The
++// hub's read-ahead paid that as a card strike and skipped the row (the B3
++// flake, documented 2026-11-10, rooted 2026-11-20): with a parked pass the
++// resume dials its queue back to back, and the previous dial's transport-side
++// close lands after the caller has already moved on, so the two dials overlap
++// exactly once and the second one eats the stale filing. Forced here rather
++// than hoped for: A holds the lane, B queues behind it, and A is only then
++// let go — the hand-off is the only way B can be granted.
++func TestAHandedOffLaneCarriesInTheIncomingDialSocket(t *testing.T) {
++	gotA, releaseA, gotB := make(chan struct{}), make(chan struct{}), make(chan struct{})
++	var sawB sync.Once
++	srv := fakeOrbServer(t, func(w http.ResponseWriter, r *http.Request) {
++		switch r.URL.Path {
++		case "/a":
++			close(gotA)
++			<-releaseA
++			_, _ = w.Write([]byte("a"))
++		case "/b":
++			sawB.Do(func() { close(gotB) })
++			_, _ = w.Write([]byte("b"))
++		}
++	})
++	host := fakeIP(srv)
++	g := NewDialGate()
++	c := NewGatedStreamClient(10*time.Second, 8*time.Second, g, ClassBackground)
++
++	fetch := func(path string) chan error {
++		done := make(chan error, 1)
++		go func() {
++			resp, err := c.HTTP().Get("http://" + host + path)
++			if err != nil {
++				done <- err
++				return
++			}
++			_, _ = io.ReadAll(resp.Body)
++			resp.Body.Close()
++			done <- nil
++		}()
++		return done
++	}
++
++	aDone := fetch("/a")
++	<-gotA // A holds the lane, its socket filed
++	bDone := fetch("/b")
++
++	// Wait for B's ticket to be in line before letting A go: the release must
++	// find the waiter and hand the lane across, never idle out from under it.
++	for deadline := time.Now().Add(2 * time.Second); ; {
++		g.mu.Lock()
++		st := g.lanes[host]
++		queued := st != nil && len(st.waiters) > 0
++		g.mu.Unlock()
++		if queued {
++			break
++		}
++		if time.Now().After(deadline) {
++			t.Fatal("the second dial never queued behind the first")
++		}
++		time.Sleep(time.Millisecond)
++	}
++	close(releaseA)
++
++	select {
++	case err := <-aDone:
++		if err != nil {
++			t.Fatalf("the holder's own dial failed: %v", err)
++		}
++	case <-time.After(5 * time.Second):
++		t.Fatal("the held dial never returned")
++	}
++	select {
++	case err := <-bDone:
++		if err != nil {
++			t.Fatalf("the handed-off lane killed the incoming dial's socket: %v", err)
++		}
++	case <-time.After(5 * time.Second):
++		t.Fatal("the queued dial never went through")
++	}
++	select {
++	case <-gotB:
++	default:
++		t.Fatal("the handed-off dial died before its request reached the orb")
++	}
++}

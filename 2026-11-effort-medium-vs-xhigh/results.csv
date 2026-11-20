@@ -1,0 +1,15 @@
+task,kind,effort,rep,verify_passed,status,wall_min,output_tokens,reasoning_tokens,tool_calls,tool_errors,blind_label,blind_score_of_14,stress_1000x_race_failures
+a2p-design,design,medium,1,True,done,29,57726,66385,172,5,B,10,
+a2p-design,design,medium,2,True,done,14,32004,57980,118,4,D,5,
+a2p-design,design,xhigh,1,True,done,38,49764,82385,180,9,A,9,
+a2p-design,design,xhigh,2,True,done,36,102475,124560,225,13,C,2,
+a2x-design,design,medium,1,True,done,58,53959,26716,163,7,A,9,
+a2x-design,design,medium,2,True,done,30,57779,43857,131,3,D,5,
+a2x-design,design,xhigh,1,True,done,63,47264,39192,133,3,C,10,
+a2x-design,design,xhigh,2,True,done,45,102304,66950,239,8,B,6,
+b3-fix,implementation,medium,1,True,done,65,21809,45946,113,5,,,0
+b3-fix,implementation,medium,2,True,done,53,16747,57912,90,0,,,0
+b3-fix,implementation,medium,3,True,done,67,20993,30239,105,1,,,0
+b3-fix,implementation,xhigh,1,True,done,73,15124,94750,82,1,,,0
+b3-fix,implementation,xhigh,2,True,timeout,95,27972,102028,117,5,,,0
+b3-fix,implementation,xhigh,3,True,done,28,19203,30733,82,0,,,0

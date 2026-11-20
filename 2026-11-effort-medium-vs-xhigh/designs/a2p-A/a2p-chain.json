@@ -1,0 +1,58 @@
+{
+  "name": "a2p",
+  "repo": "../..",
+  "base": "a2-steps-6-8",
+  "gate": "python3 tools/run_tests.py",
+  "retries": 2,
+  "steps": [
+    {
+      "name": "a2p-1-bar",
+      "title": "Picker bar: two commands, the guarded admin hand-off, dropdown skeleton",
+      "spec": "docs/specs/a2p-1-bar.md",
+      "hard": true,
+      "scope": [
+        "docs/specs/a2p-design.md",
+        "docs/specs/a2p-1-bar.md",
+        "docs/specs/a2p-2-dropdown.md",
+        "docs/specs/a2p-3-screenshots.md",
+        "docs/specs/a2p-chain.json",
+        "hub/static/index.html",
+        "hub/static/app.css",
+        "hub/static/state.js",
+        "hub/static/admin_link.js",
+        "hub/static/views/sessions.js",
+        "hub/tests/test_a2p_bar.py",
+        "hub/tests/test_sessions_ui.py"
+      ],
+      "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p1.log\"; timeout 1500 python3 tools/run_tests.py > \"$V\" 2>&1; rc=$?; tail -25 \"$V\"; test \"$rc\" -eq 0 || exit 1; for m in hub.tests.test_a2p_bar hub.tests.test_sessions_ui hub.tests.test_ui hub.tests.test_anonymity hub.tests.test_image_imports; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; grep -E '^ok |^FAIL' \"$V\" | head -40; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; test -f hub/tests/test_a2p_bar.py || { echo NO NEW MODULE; exit 1; }; git diff --name-only \"$(git merge-base HEAD a2-steps-6-8)\" | grep -qx 'hub/tests/test_sessions_ui.py' || { echo test_sessions_ui.py NOT REWRITTEN; exit 1; }; grep -q 'buildAdminHandoffUrl' hub/static/admin_link.js || { echo NO GUARD FN; exit 1; }; ! git diff \"$(git merge-base HEAD a2-steps-6-8)\" -- hub/static | grep -E '^\\+' | grep -q 'innerHTML' || { echo INNERHTML ADDED; exit 1; }; ! { git diff --name-only \"$(git merge-base HEAD a2-steps-6-8)\"; git ls-files --others --exclude-standard; } | grep -vE '^(docs/specs/a2p-[a-z0-9-]+[.]md|docs/specs/a2p-chain[.]json|hub/static/(index[.]html|app[.]css|state[.]js|admin_link[.]js|views/sessions[.]js)|hub/tests/test_(a2p_bar|sessions_ui)[.]py)$' || { echo SCOPE VIOLATION; exit 1; }"
+    },
+    {
+      "name": "a2p-2-dropdown",
+      "title": "Dropdown contents: sections, one-shot OpenCode, admin stop, states, keyboard",
+      "spec": "docs/specs/a2p-2-dropdown.md",
+      "hard": true,
+      "scope": [
+        "hub/static/app.css",
+        "hub/static/views/sessions.js",
+        "hub/static/views/claude.js",
+        "hub/static/views/running.js",
+        "hub/tests/test_a2p_dropdown.py",
+        "hub/tests/test_sessions_ui.py"
+      ],
+      "verify": "set -o pipefail; P=delegate/a2p-1-bar; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p2.log\"; git rev-parse --verify \"$P\" >/dev/null; timeout 1500 python3 tools/run_tests.py > \"$V\" 2>&1; rc=$?; tail -25 \"$V\"; test \"$rc\" -eq 0 || exit 1; for m in hub.tests.test_a2p_dropdown hub.tests.test_a2p_bar hub.tests.test_sessions_ui hub.tests.test_ui hub.tests.test_anonymity hub.tests.test_image_imports; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; grep -E '^ok |^FAIL' \"$V\" | head -40; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; test -f hub/tests/test_a2p_dropdown.py || { echo NO NEW MODULE; exit 1; }; grep -q 'test.*stop' hub/tests/test_a2p_dropdown.py || { echo NO FLOW TEST; exit 1; }; ! git diff \"$(git merge-base HEAD \"$P\")\" -- hub/static | grep -E '^\\+' | grep -q 'innerHTML' || { echo INNERHTML ADDED; exit 1; }; ! { git diff --name-only \"$(git merge-base HEAD \"$P\")\"; git ls-files --others --exclude-standard; } | grep -vE '^(hub/static/(app[.]css|views/(sessions|claude|running)[.]js)|hub/tests/test_(a2p_dropdown|sessions_ui)[.]py)$' || { echo SCOPE VIOLATION; exit 1; }"
+    },
+    {
+      "name": "a2p-3-screenshots",
+      "title": "Screenshot acceptance at both viewports and themes; polish and the slice gate",
+      "spec": "docs/specs/a2p-3-screenshots.md",
+      "hard": true,
+      "scope": [
+        "hub/static/app.css",
+        "hub/static/index.html",
+        "hub/static/views/sessions.js",
+        "hub/tests/test_a2p_browser.py"
+      ],
+      "verify": "set -o pipefail; P=delegate/a2p-2-dropdown; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2p3.log\"; git rev-parse --verify \"$P\" >/dev/null; timeout 1500 python3 tools/run_tests.py > \"$V\" 2>&1; rc=$?; tail -25 \"$V\"; test \"$rc\" -eq 0 || exit 1; for m in hub.tests.test_a2p_browser hub.tests.test_a2p_bar hub.tests.test_a2p_dropdown hub.tests.test_sessions_ui hub.tests.test_ui hub.tests.test_anonymity hub.tests.test_image_imports; do grep -qE \"^ok +$m \" \"$V\" || { echo \"MISSING OR FAILED $m\"; grep -E '^ok |^FAIL' \"$V\" | head -40; exit 1; }; done; ! grep -qE '^FAIL +|^not ok' \"$V\" || exit 1; D=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/a2p-shots\"; for f in 390x800-light-closed 390x800-light-open 390x800-dark-closed 390x800-dark-open 1440x900-light-closed 1440x900-light-open 1440x900-dark-closed 1440x900-dark-open; do test -s \"$D/$f.png\" || { echo \"MISSING SHOT $D/$f.png\"; exit 1; }; done; ! { git diff --name-only \"$(git merge-base HEAD \"$P\")\"; git ls-files --others --exclude-standard; } | grep -vE '^(hub/static/(app[.]css|index[.]html|views/sessions[.]js)|hub/tests/test_a2p_browser[.]py)$' || { echo SCOPE VIOLATION; exit 1; }"
+    }
+  ]
+}

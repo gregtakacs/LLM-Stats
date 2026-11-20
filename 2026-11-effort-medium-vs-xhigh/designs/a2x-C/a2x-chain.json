@@ -1,0 +1,53 @@
+{
+ "name": "a2x",
+ "repo": "../..",
+ "base": "a2-steps-6-8",
+ "gate": "python3 tools/run_tests.py",
+ "retries": 2,
+ "steps": [
+  {
+   "name": "a2x-1-broker-client-hostile",
+   "spec": "docs/specs/a2x-1-broker-client-hostile.md",
+   "hard": true,
+   "scope": [
+    "broker/tests/test_a2x_broker_hostile.py",
+    "broker/tests/fakebin.py",
+    "broker/protocol.py"
+   ],
+   "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x1.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +broker[.]tests[.]test_a2x_broker_hostile ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_protocol ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_server ' \"$V\" && grep -qE '^ok +broker[.]tests[.]test_paths ' \"$V\" || { echo MISSING MODULE; grep -E 'FAIL|test_a2x' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL' \"$V\" | head; exit 1; }; ! git diff --name-only a2-steps-6-8 | grep -qvE '^(broker/tests/test_a2x_broker_hostile[.]py|broker/tests/fakebin[.]py|broker/protocol[.]py|docs/specs/)' || { echo SCOPE VIOLATION; git diff --name-only a2-steps-6-8; exit 1; }; grep -E '^run_tests:' \"$V\""
+  },
+  {
+   "name": "a2x-2-hub-relay-hostile",
+   "spec": "docs/specs/a2x-2-hub-relay-hostile.md",
+   "hard": true,
+   "scope": [
+    "hub/tests/test_a2x_relay_hostile.py",
+    "hub/gate.py",
+    "hub/proxy.py",
+    "hub/routes.py"
+   ],
+   "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x2.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +hub[.]tests[.]test_a2x_relay_hostile ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_anonymity ' \"$V\" && grep -qE '^ok +hub[.]tests[.]test_a2h_relay ' \"$V\" || { echo MISSING MODULE; grep -E 'FAIL|test_a2x' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL' \"$V\" | head; exit 1; }; ! git diff --name-only delegate/a2x-1-broker-client-hostile | grep -qvE '^(hub/tests/test_a2x_relay_hostile[.]py|hub/gate[.]py|hub/proxy[.]py|hub/routes[.]py|docs/specs/)' || { echo SCOPE VIOLATION; git diff --name-only delegate/a2x-1-broker-client-hostile; exit 1; }; grep -E '^run_tests:' \"$V\""
+  },
+  {
+   "name": "a2x-3-oc-migration-hostile",
+   "spec": "docs/specs/a2x-3-oc-migration-hostile.md",
+   "hard": true,
+   "scope": [
+    "oc/tests/test_a2x_oc_hostile.py",
+    "oc/projects.py",
+    "oc/migrate.py"
+   ],
+   "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x3.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +oc[.]tests[.]test_a2x_oc_hostile ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_projects ' \"$V\" && grep -qE '^ok +oc[.]tests[.]test_migrate ' \"$V\" || { echo MISSING MODULE; grep -E 'FAIL|test_a2x' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL' \"$V\" | head; exit 1; }; ! git diff --name-only delegate/a2x-2-hub-relay-hostile | grep -qvE '^(oc/tests/test_a2x_oc_hostile[.]py|oc/projects[.]py|oc/migrate[.]py|docs/specs/)' || { echo SCOPE VIOLATION; git diff --name-only delegate/a2x-2-hub-relay-hostile; exit 1; }; grep -E '^run_tests:' \"$V\""
+  },
+  {
+   "name": "a2x-4-live-acceptance-script",
+   "spec": "docs/specs/a2x-4-live-acceptance-script.md",
+   "hard": true,
+   "scope": [
+    "tools/a2-hostile-live.py",
+    "tools/tests/test_a2_hostile_live.py"
+   ],
+   "verify": "set -o pipefail; V=\"${DELEGATE_EVIDENCE_DIR:-/tmp}/verify-a2x4.log\"; python3 tools/run_tests.py > \"$V\" 2>&1 || { tail -60 \"$V\"; exit 1; }; grep -qE '^ok +tools[.]tests[.]test_a2_hostile_live ' \"$V\" || { echo MISSING MODULE; grep -E 'FAIL|hostile' \"$V\" | head -40; exit 1; }; ! grep -qE '^FAIL +|^not ok' \"$V\" || { grep -E '^FAIL' \"$V\" | head; exit 1; }; H=$(mktemp -d); test \"$(HOME=\"$H\" python3 tools/a2-hostile-live.py --dry-run --project A --other B >/dev/null 2>&1; echo $?)\" = 2 || { echo 'DRY-RUN GUARD: must exit 2 with no registry present'; exit 1; }; rm -rf \"$H\"; ! git diff --name-only delegate/a2x-3-oc-migration-hostile | grep -qvE '^(tools/a2-hostile-live[.]py|tools/tests/test_a2_hostile_live[.]py|docs/specs/)' || { echo SCOPE VIOLATION; git diff --name-only delegate/a2x-3-oc-migration-hostile; exit 1; }; grep -E '^run_tests:' \"$V\""
+  }
+ ]
+}
